@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Posta DNS · Informaticadeso</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #172837; --panel: #233a49; --text: #edf5fa;
+      --line: #728b9c; --accent: #116775;
+    }
+    :root.light {
+      color-scheme: light;
+      --bg: #f4f7fa; --panel: white; --text: #17334b; --line: #93a9b7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 system-ui, sans-serif;
+    }
+    main { max-width: 800px; margin: auto; padding: 22px; }
+    header { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 18px; }
+    img { display: block; width: 100%; border-radius: 14px; }
+    h1, h2 { line-height: 1.2; }
+    button, input, select { font: inherit; border-radius: 8px; padding: 10px 14px; }
+    button { cursor: pointer; background: var(--accent); color: white; border: 0; }
+    button:disabled { opacity: .65; }
+    input, select, pre {
+      background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    }
+    label { display: block; margin: 14px 0; }
+    input { display: block; width: 100%; margin-top: 5px; }
+    .wide { width: 100%; margin-top: 12px; }
+    small { display: block; }
+    pre { padding: 14px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    summary { cursor: pointer; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <select id="language" aria-label="Lingua / Language">
+      <option value="it">Italiano</option><option value="en">English</option>
+    </select>
+    <button id="theme"></button>
+  </header>
+
+  <section id="cover">
+    <img src="./copertina.jpg" alt="">
+    <h1>Posta DNS</h1>
+    <p data-en="See where mail for your domain is delivered.">Scopri dove arriva la posta del tuo dominio.</p>
+    <button class="wide" data-page="guide" data-en="Enter →">Entra →</button>
+  </section>
+
+  <section id="guide" hidden>
+    <h1 data-en="How Posta DNS works">Come funziona Posta DNS</h1>
+    <h2 data-en="1 · Domain check">1 · Controllo del dominio</h2>
+    <p data-en="Check MX and SPF. Enter a DKIM selector to look up the public key. Save your results as a text file.">Controlla MX e SPF. Se conosci il selettore DKIM, inseriscilo per cercare la chiave pubblica. Puoi salvare il risultato in un file di testo.</p>
+    <h2 data-en="2 · Mailbox copy">2 · Copia della posta</h2>
+    <p data-en="Planned: copy folders and messages between mailboxes.">In progetto: copiare cartelle e messaggi tra due caselle.</p>
+    <h2 data-en="3 · Migration review">3 · Verifica della migrazione</h2>
+    <p data-en="Planned: compare mailboxes and document a delivery test.">In progetto: confrontare le caselle e documentare una prova di consegna.</p>
+    <button class="wide" data-page="check" data-en="Open DNS check →">Apri il controllo DNS →</button>
+    <button class="wide" data-page="cover" data-en="← Welcome">← Copertina</button>
+  </section>
+
+  <section id="check" hidden>
+    <button data-page="guide" data-en="← Guide">← Guida</button>
+    <h1 data-en="Check domain mail">Controlla la posta del dominio</h1>
+    <form id="form">
+      <label><span data-en="Domain">Dominio</span>
+        <input id="domain" type="search" required placeholder="esempio.it" maxlength="254">
+      </label>
+      <label><span data-en="DKIM selector (optional)">Selettore DKIM (facoltativo)</span>
+        <input id="selector" type="search" placeholder="ovhmo-selector-1" maxlength="253">
+      </label>
+      <small data-en="Queries send the domain and selector to Google Public DNS.">Per il controllo, il dominio e il selettore vengono inviati a Google Public DNS.</small>
+      <button id="submit" class="wide" data-en="Check mail">Controlla posta</button>
+    </form>
+    <p id="status" role="status"></p>
+    <details id="details" hidden open>
+      <summary data-en="Technical details">Dettagli tecnici</summary>
+      <pre id="output"></pre>
+    </details>
+    <button id="save" class="wide" hidden data-en="Save TXT report">Salva rapporto TXT</button>
+  </section>
+</main>
+
+<script>
+const el = id => document.getElementById(id);
+const tr = (it, en) => el("language").value === "it" ? it : en;
+const labels = [...document.querySelectorAll("[data-en]")];
+labels.forEach(node => node.dataset.it = node.textContent);
+
+let results = [], message = [], checkedDomain = "", timestamp = "", generation = 0;
+
+function render() {
+  el("status").textContent = message.length ? tr(...message) : "";
+  el("output").textContent = results.map(r =>
+    [r.kind + " · " + tr(...r.summary), ...r.lines].join("\n")
+  ).join("\n\n");
+  el("details").hidden = el("save").hidden = !results.length;
+}
+
+function language() {
+  const lang = el("language").value;
+  document.documentElement.lang = lang;
+  labels.forEach(node => node.textContent = node.dataset[lang]);
+  el("theme").textContent = document.documentElement.classList.contains("light")
+    ? tr("Tema scuro", "Dark theme") : tr("Tema chiaro", "Light theme");
+  render();
+}
+
+document.querySelectorAll("[data-page]").forEach(button => {
+  button.onclick = () => {
+    document.querySelectorAll("main > section").forEach(section => {
+      section.hidden = section.id !== button.dataset.page;
+    });
+    window.scrollTo(0, 0);
+  };
+});
+
+el("language").onchange = language;
+el("theme").onclick = () => {
+  document.documentElement.classList.toggle("light");
+  language();
+};
+
+function validLabels(name) {
+  return name.split(".").every(part =>
+    /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(part)
+  );
+}
+
+async function lookup(kind, name) {
+  const lines = [];
+  try {
+    const params = new URLSearchParams({
+      name, type: kind === "MX" ? "MX" : "TXT", edns_client_subnet: "0.0.0.0/0"
+    });
+    const response = await fetch("https://dns.google/resolve?" + params, {
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) throw Error();
+    const data = await response.json();
+    if (data.Status === 3)
+      return {kind, summary: ["Nome DNS inesistente.", "DNS name does not exist."], lines: [name]};
+    if (data.Status !== 0 || data.TC) throw Error();
+
+    const records = data.Answer || [];
+    let summary;
+    if (kind === "MX") {
+      const rows = records.filter(r => r.type === 15)
+        .sort((a, b) => parseInt(a.data) - parseInt(b.data));
+      rows.forEach(r => lines.push(r.data + "   (TTL " + r.TTL + " s)"));
+      summary = rows.length
+        ? [rows.length + " server di ricezione pubblicati.", rows.length + " published receiving servers."]
+        : ["Nessun record MX esplicito.", "No explicit MX record."];
+      if (rows.some(r => /\s\.$/.test(r.data.trim()))) {
+        summary = rows.length === 1 && /^0\s+\.$/.test(rows[0].data.trim())
+          ? ["Il dominio dichiara di non accettare posta.", "The domain declares it does not accept mail."]
+          : ["Configurazione MX incoerente.", "Inconsistent MX records."];
+      }
+    } else {
+      const txt = records.filter(r => r.type === 16)
+        .map(r => r.data.replace(/"\s*"/g, "").replace(/^"|"$/g, ""));
+      if (kind === "SPF") {
+        lines.push(...txt.filter(value => /^v=spf1(?: |$)/i.test(value)));
+        summary = lines.length === 1 ? ["Record SPF pubblicato.", "SPF record published."]
+          : lines.length ? ["Più record SPF pubblicati.", "Multiple SPF records published."]
+          : ["Nessun record SPF pubblicato.", "No SPF record published."];
+      } else {
+        const keys = txt.filter(value => /(?:^|;)\s*(?:v=DKIM1\b|p\s*=)/.test(value));
+        lines.push(name, ...records.filter(r => r.type === 5).map(r => r.data), ...keys);
+        summary = ["Record DKIM da verificare.", "Review DKIM record."];
+        if (!keys.length) {
+          summary = ["Nessuna chiave per questo selettore.", "No key found for this selector."];
+        } else if (keys.length === 1) {
+          const tags = keys[0].split(";").map(t => t.trim()).filter(Boolean);
+          const keyTags = tags.filter(t => /^p\s*=/.test(t));
+          const versions = tags.filter(t => /^v\s*=/.test(t));
+          if (keyTags.length === 1 && (!versions.length ||
+              (versions.length === 1 && versions[0] === "v=DKIM1"))) {
+            const value = keyTags[0].replace(/^p\s*=/, "").replace(/\s/g, "");
+            if (!value) summary = ["Chiave DKIM revocata.", "DKIM key revoked."];
+            else {
+              try {
+                atob(value);
+                summary = ["Chiave DKIM pubblicata.", "DKIM key published."];
+              } catch { /* Mantieni il messaggio di verifica. */ }
+            }
+          }
+        }
+      }
+    }
+    return {kind, summary, lines};
+  } catch {
+    return {kind, summary: ["Consultazione incompleta. Riprova.", "Lookup incomplete. Try again."], lines: [name]};
+  }
+}
+
+el("form").oninput = () => {
+  generation++;
+  results = []; message = [];
+  el("submit").disabled = false;
+  render();
+};
+
+el("form").onsubmit = async event => {
+  event.preventDefault();
+  const current = ++generation;
+  const domain = el("domain").value.trim().toLowerCase().replace(/\.$/, "");
+  const selector = el("selector").value.trim().toLowerCase();
+  results = [];
+  if (!domain.includes(".") || domain.length > 253 || !validLabels(domain) || /^[\d.]+$/.test(domain)) {
+    message = ["Inserisci un dominio, per esempio esempio.it.", "Enter a domain such as example.com."];
+    render(); return;
+  }
+  const owner = selector + "._domainkey." + domain;
+  if (selector && (!validLabels(selector) || owner.length > 253)) {
+    message = ["Controlla il selettore DKIM.", "Check the DKIM selector."];
+    render(); return;
+  }
+  message = ["Consultazione DNS in corso…", "Looking up DNS…"];
+  el("submit").disabled = true;
+  render();
+  const queries = [lookup("MX", domain), lookup("SPF", domain)];
+  if (selector) queries.push(lookup("DKIM", owner));
+  const answers = await Promise.all(queries);
+  if (current !== generation) return;
+  results = answers; checkedDomain = domain;
+  timestamp = new Date().toISOString();
+  message = [domain, domain];
+  el("submit").disabled = false;
+  render();
+};
+
+el("save").onclick = () => {
+  const text = "Posta DNS · " + timestamp + "\n" + checkedDomain + "\n\n" + el("output").textContent + "\n";
+  const url = URL.createObjectURL(new Blob([text], {type: "text/plain;charset=utf-8"}));
+  const link = document.createElement("a");
+  link.href = url; link.download = checkedDomain + "-dns.txt"; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+};
+language();
+</script>
+</body>
+</html>
